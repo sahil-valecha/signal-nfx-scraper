@@ -1,129 +1,273 @@
 # Signal NFX Investor List Builder
 
-You are helping the user pull a targeted investor list from Signal NFX. Drive the entire flow conversationally - the user should never have to read the Python code or know what a GraphQL slug is.
-
-## Your job
-
-1. Check auth
-2. Understand what the user wants in plain English
-3. Discover available lists, map their intent to the right slugs
-4. Run the scraper with the right filters
-5. Report what they got
+Pull a targeted investor list from Signal NFX. Follow these steps in order. Do not skip steps. Do not proceed past a checkpoint until it passes.
 
 ---
 
-## Step 1: Check authentication
+## STEP 1 — Intake
 
-Run this to test if a cached JWT exists and works:
+Ask the user these four questions. Get answers before doing anything else.
+
+1. **Sector / thesis** — what type of investors? (e.g. cybersecurity, EdTech, climate, fintech, B2B SaaS, impact)
+2. **Geography** — which countries or regions? (e.g. USA, Europe, UK, APAC, Global)
+3. **Stage** — what stage? (pre-seed, seed, Series A, or any)
+4. **Check size** — any preference? (e.g. "$250k–$2M" or "doesn't matter")
+
+If the user already gave some of this in their message, confirm it rather than re-asking. Once you have all four, summarise back to them in one line and ask them to confirm before proceeding.
+
+Example confirmation:
+> "Got it - seed-stage cybersecurity investors in the USA, checks $250k–$5M. Proceeding to check your login."
+
+---
+
+## STEP 2 — Authentication
+
+**Run:**
 ```bash
 python scraper.py auth
 ```
 
-If it fails or no cache exists, run the auth flow:
+**What to expect:**
+- If a cached JWT exists and is valid: prints confirmation, move to Step 3
+- If no cache or expired: move to the auth flow below
+
+**Auth flow:**
+
+On macOS, the script auto-extracts the JWT from Chrome. Run:
+```bash
+pip install pycryptodome
+python scraper.py auth --reset
+```
+
+If that succeeds: move to Step 3.
+
+If it fails: use manual JWT paste.
+
+**Manual JWT paste (all platforms):**
+Tell the user:
+1. Open Chrome and go to [signal.nfx.com](https://signal.nfx.com) — log in if needed
+2. Open DevTools: `Cmd+Option+I` on Mac, `F12` on Windows
+3. Click the **Application** tab
+4. In the left sidebar: Cookies → `https://signal.nfx.com`
+5. Find the cookie named exactly **`SIGNAL_ACCESS_JWT`**
+6. Click it and copy the full value from the bottom panel (it's a long string starting with `eyJ`)
+7. Paste it when the script prompts you
+
+Then run:
 ```bash
 python scraper.py auth --reset
 ```
 
-On macOS, the script will attempt to auto-extract the JWT from Chrome. If the user is not logged into signal.nfx.com in Chrome, tell them to:
-1. Go to signal.nfx.com in Chrome and log in
-2. Then run `python scraper.py auth --reset` again
-
-If auto-extraction fails, the script will prompt for a manual JWT paste. Guide them through it:
-- Open signal.nfx.com in Chrome
-- Open DevTools: Cmd+Option+I (Mac) or F12 (Windows)
-- Go to Application tab > Cookies > https://signal.nfx.com
-- Find the cookie named `SIGNAL_ACCESS_JWT`
-- Copy its value and paste when prompted
+**Checkpoint:** Do not proceed until `python scraper.py auth` runs without error.
 
 ---
 
-## Step 2: Understand what the user wants
+### Auth troubleshooting
 
-Ask (or infer from their message) two things:
-1. **What type of investors?** (sector/thesis - e.g. "cybersecurity", "EdTech", "fintech", "climate", "B2B SaaS")
-2. **What geography?** (e.g. "USA", "Europe", "global", "APAC")
+**"Cookie not found in Chrome"**
+→ The user isn't logged into Signal NFX in Chrome, or they're using a different browser.
+Fix: open Chrome (not Safari, not Firefox), go to signal.nfx.com, log in, then retry.
 
-Optionally also ask:
-- Check size range (e.g. "seed checks, $250k-$2M" or "Series A, $1M-$10M")
-- Stage preference if not obvious from sector description
+**"Could not read Chrome Safe Storage key"**
+→ macOS Keychain access issue.
+Fix: skip auto-auth entirely. Run `python scraper.py auth --reset` and use manual JWT paste instead.
+
+**"pycryptodome not found" or ImportError on Crypto**
+→ Wrong package installed. `crypto` and `pycrypto` are not the same as `pycryptodome`.
+Fix:
+```bash
+pip uninstall crypto pycrypto
+pip install pycryptodome
+```
+If user doesn't want to install anything: skip to manual JWT paste (pycryptodome is only needed for auto-auth).
+
+**"Permission denied" reading Chrome Cookies**
+→ Chrome is open and locking the file. The script copies it first, but on some systems this still fails.
+Fix: tell the user to close Chrome completely, then re-run. Or use manual JWT paste.
+
+**Windows / Linux users**
+→ Chrome auto-auth does not work on Windows or Linux. Go straight to manual JWT paste. Do not waste time trying to make auto-auth work on these platforms.
+
+**JWT seems to work but scrape returns 401 later**
+→ JWT expired mid-session.
+Fix: `python scraper.py auth --reset` then re-run the scrape from the beginning.
 
 ---
 
-## Step 3: Discover available lists
+## STEP 3 — Discover available lists
 
+**Run:**
 ```bash
 python scraper.py discover
 ```
 
-Read the output carefully. Map the user's intent to the best matching slugs. Examples:
-
-- "cybersecurity investors" → look for slugs containing `cybersecurity`, `security`, `enterprise-security`
-- "EdTech seed investors" → `edtech-seed`, `education-seed`, `education-pre-seed`
-- "climate/cleantech" → `climate-tech-seed`, `cleantech-seed`, `sustainability-seed`
-- "B2B SaaS" → `enterprise-seed`, `saas-seed`, `b2b-seed`
-- "fintech" → `fintech-seed`, `fintech-series-a`
-- "impact investors" → `impact-seed`, `social-impact-seed`, `impact-pre-seed`
-
-Pick 1-3 slugs that best match. Don't over-scrape - focused is better. Tell the user which lists you're using and why.
-
-If no exact match exists, pick the closest and tell the user.
-
----
-
-## Step 4: Run the scraper
-
-Build the command based on what you learned:
-
-```bash
-python scraper.py scrape \
-  --slugs "<slug1>,<slug2>" \
-  --locations "<location>" \
-  --min-check <amount> \
-  --output <descriptive-filename>.csv
+Read the full output. You'll get a list of API slugs like:
+```
+cybersecurity-seed
+cybersecurity-series-a
+enterprise-security-seed
+...
 ```
 
-Location values that work well:
-- `"United States"` for USA
-- `"Europe"` for European investors
-- `"United Kingdom"` for UK specifically
-- `"Global"` to include investors who invest globally
-- For multiple: `"United States,Canada"`
+Based on the user's intake answers, identify 1–3 slugs that best match. Rules:
+- Prefer exact sector matches over broad ones
+- Include both `seed` and `pre-seed` variants if the user wants early stage
+- Do not pick more than 3 slugs — focused is better than comprehensive
+- If no exact match exists, pick the closest and tell the user
 
-To capture both USA-based and global investors: run without --locations and filter manually, or use `"United States,Global"`.
+**Show the user your slug selection and explain why before proceeding.** Example:
+> "I'll pull from `cybersecurity-seed` and `cybersecurity-series-a`. The first covers seed-stage cyber investors, the second adds Series A. No pre-seed list exists for cybersecurity specifically. Confirm?"
 
-Check size in dollars (no commas):
-- Seed: `--min-check 250000 --max-check 5000000`
-- Pre-seed: `--min-check 100000 --max-check 2000000`
-- Series A: `--min-check 1000000 --max-check 20000000`
+Wait for confirmation. Do not scrape without it.
 
-Name the output file descriptively: `cybersecurity-usa-seed-investors.csv`
+**Checkpoint:** User has confirmed the slug list.
 
 ---
 
-## Step 5: Report results
+### Discovery troubleshooting
 
-After the scrape completes, tell the user:
-- How many investors are in the CSV
-- What the filename is and where it was saved (current directory)
-- What columns are in it: name, firm, LinkedIn URL, check size (min/max), stages, locations
-- A quick next step: "Upload to Clay or Google Sheets - the LinkedIn URL column is ready for enrichment"
+**"No lists found" or 0 slugs returned**
+→ Signal NFX changed their page HTML. The regex may have stopped matching.
+Fix: run this to inspect the raw HTML:
+```bash
+python -c "
+import urllib.request
+req = urllib.request.Request('https://signal.nfx.com/investor-lists', headers={'User-Agent': 'Mozilla/5.0'})
+with urllib.request.urlopen(req) as r:
+    html = r.read().decode()
+# Look for investor-list hrefs
+import re
+print('\n'.join(re.findall(r'/investor-lists/[\w\-]+', html)[:20]))
+"
+```
+If hrefs appear but with a different pattern, update the regex in `scraper.py`'s `cmd_discover` function.
 
-If the result is 0 rows, diagnose: likely the location filter was too strict. Suggest re-running without `--locations` to see the full list, then they can filter manually in Google Sheets.
+**Slug the user mentions doesn't appear in discover output**
+→ They may be using the URL slug format (e.g. `top-cybersecurity-seed-investors`) instead of the API format.
+Fix: strip `top-` from the start and `-investors` from the end. `top-cybersecurity-seed-investors` → `cybersecurity-seed`.
+Never pass URL-format slugs to the scrape command.
+
+**A slug appears in discover but returns "not found" during scrape**
+→ The list may have been removed or renamed by Signal NFX.
+Fix: re-run `discover` to get a fresh list and pick an alternative slug.
 
 ---
 
-## Edge cases
+## STEP 4 — Run the scrape
 
-**JWT expired mid-scrape:** The script will print an auth error. Run `python scraper.py auth --reset` to refresh, then re-run the scrape.
+Build the command from the intake answers. Use these exact parameter formats:
 
-**Slug not found:** The script will skip it and say so. Go back to discover and pick a different slug.
+**Location values that work:**
+- USA → `"United States"`
+- UK → `"United Kingdom"`
+- Europe (broad) → `"Europe"`
+- Multiple → `"United States,Canada"`
+- Global investors → add `"Global"` to capture people who invest worldwide: `"United States,Global"`
 
-**Large lists (1000+ investors):** Normal - pagination is handled automatically. May take 1-2 minutes.
+**Check size in dollars (no commas, no $ sign):**
+- Pre-seed → `--min-check 100000 --max-check 2000000`
+- Seed → `--min-check 250000 --max-check 5000000`
+- Series A → `--min-check 1000000 --max-check 20000000`
+- If user said "doesn't matter" → omit both flags
 
-**Rate limited:** The script handles retries automatically with backoff. Just wait.
+**Output filename:** make it descriptive. `cybersecurity-usa-seed-investors.csv`
+
+**Example command:**
+```bash
+python scraper.py scrape \
+  --slugs "cybersecurity-seed,cybersecurity-series-a" \
+  --locations "United States,Global" \
+  --min-check 250000 \
+  --max-check 5000000 \
+  --output cybersecurity-usa-seed-investors.csv
+```
+
+Large lists (1000+ investors) take 1–2 minutes. Tell the user this if they seem to be waiting. The script handles pagination and rate limiting automatically — do not interrupt it.
+
+**Checkpoint:** Script finishes and reports row counts.
 
 ---
 
-## Tone
+### Scrape troubleshooting
 
-Be direct and clear. Don't over-explain the technical details unless asked. The user wants a list - get them there in as few steps as possible.
+**0 rows after location filter**
+→ The location string didn't match any values in the data. This is the most common issue.
+Fix: re-run without `--locations` to get the raw list, then check what location values actually appear:
+```bash
+python scraper.py scrape --slugs "cybersecurity-seed" --output cybersecurity-raw.csv
+python -c "
+import csv
+locs = set()
+for row in csv.DictReader(open('cybersecurity-raw.csv')):
+    for l in row['investment_locations'].split(', '):
+        locs.add(l.strip())
+print(sorted(locs))
+"
+```
+Use the exact strings that appear in the output as your `--locations` values.
+
+**403 error during scrape**
+→ Usually means the JWT expired or was rejected.
+Fix: `python scraper.py auth --reset` then re-run.
+
+**429 error / rate limited**
+→ Script handles this automatically with exponential backoff. If it keeps happening after multiple retries, stop and wait 5 minutes before trying again.
+
+**Scrape hangs on a large list**
+→ Normal — large lists paginate through hundreds of pages. 1000 investors ≈ 10 pages ≈ ~30 seconds. Do not interrupt.
+
+**"Slug not found" for a slug that appeared in discover**
+→ Signal NFX occasionally restructures lists. Re-run discover to confirm it still exists.
+
+**GraphQL error mentioning unknown field**
+→ Signal NFX may have changed their schema. Do not add or guess field names.
+Fields confirmed to work: `person.id`, `person.first_name`, `person.last_name`, `person.name`, `person.slug`, `person.linkedin_url`, `person.twitter_url`, `person.image_url`, `node.id`, `node.position`, `node.min_investment`, `node.max_investment`, `node.target_investment`, `node.stages`, `node.investment_locations`, `firm.id`, `firm.name`, `firm.slug`, `firm.description`, `firm.twitter_url`, `firm.linkedin_url`, `firm.url`, `firm.crunchbase_url`, `firm.angellist_url`.
+Fields that do NOT exist (do not try them): `person.twitter`, `person.website`, `person.photo_url`, `person.location`, `firm.website_url`, `firm.website`, `node.investment_themes`, `node.investment_stages`, `node.sectors`, `node.tags`, `node.score`.
+
+---
+
+## STEP 5 — Validate and report
+
+After the scrape completes, verify the output before telling the user it's done.
+
+**Run:**
+```bash
+python -c "
+import csv
+rows = list(csv.DictReader(open('FILENAME.csv')))
+print(f'Rows: {len(rows)}')
+if rows:
+    r = rows[0]
+    print(f'Sample: {r[\"name\"]} @ {r[\"firm\"]} | LinkedIn: {r[\"linkedin_url\"]} | Locations: {r[\"investment_locations\"]}')
+"
+```
+
+Replace `FILENAME.csv` with the actual output filename.
+
+**Checkpoint:** File exists, row count > 0, sample row looks correct.
+
+If row count is 0: do not tell the user it worked. Go back to scrape troubleshooting.
+
+**Report to the user:**
+> "Done — [N] investors saved to `[filename].csv`
+> Columns: name, firm, LinkedIn URL, check size (min/max), stages, investment locations
+> Next step: upload to Clay or Google Sheets. The `linkedin_url` column is ready for enrichment."
+
+---
+
+## Quick reference — common intent to slug mappings
+
+| User says | Slugs to try |
+|-----------|-------------|
+| cybersecurity / security | `cybersecurity-seed`, `cybersecurity-series-a`, `enterprise-security-seed` |
+| EdTech / education | `edtech-seed`, `education-seed`, `education-pre-seed`, `education-series-a` |
+| climate / cleantech | `climate-tech-seed`, `cleantech-seed`, `sustainability-seed` |
+| fintech | `fintech-seed`, `fintech-series-a` |
+| impact / ESG | `impact-seed`, `social-impact-seed`, `impact-pre-seed` |
+| B2B SaaS / enterprise | `enterprise-seed`, `saas-seed`, `b2b-seed` |
+| future of work / HR tech | `future-of-work-seed`, `hr-tech-seed` |
+| healthcare / health tech | `healthcare-seed`, `digital-health-seed` |
+| consumer | `consumer-seed`, `consumer-series-a` |
+| angel investors | `angel-scout-and-solo-capitalists` |
+
+Always confirm these against `discover` output — Signal NFX adds and renames lists. This table is a starting point, not a definitive list.
