@@ -1,0 +1,7 @@
+# Core dependencies - all stdlib except pycryptodome
+# pycryptodome is only needed for auto-extracting the JWT from Chrome on macOS
+# If you're on Mac and want auto-auth, install it:
+#   pip install pycryptodome
+#
+# Otherwise the script will prompt you to paste your JWT manually (no install needed)
+pycryptodome>=3.19.0
