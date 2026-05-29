@@ -4,6 +4,40 @@ Pull a targeted investor list from Signal NFX. Follow these steps in order. Do n
 
 ---
 
+## STEP 0 — Prerequisites check
+
+Run this before anything else:
+
+```bash
+python --version
+```
+
+If it fails or returns Python 2.x:
+- Mac: `brew install python@3.11` or download from python.org
+- Windows: download from python.org
+- Tell the user to restart their terminal after installing, then re-run `/signal-nfx`
+- Do not proceed until `python --version` returns 3.11 or higher
+
+Then check pycryptodome (needed for auto-login on Mac):
+```bash
+python -c "import Crypto; print('pycryptodome ok')"
+```
+
+If it fails:
+```bash
+pip install pycryptodome
+```
+
+If `pip` itself isn't found: try `pip3 install pycryptodome`.
+
+If install fails due to permissions: try `pip install --user pycryptodome`.
+
+Note: pycryptodome is only needed for auto-login on Mac. If the user is on Windows or Linux, skip this and tell them they'll paste their JWT manually in the auth step — that's fine.
+
+**Checkpoint:** Python 3.11+ confirmed. Move to Step 1.
+
+---
+
 ## STEP 1 — Intake
 
 Ask the user these four questions. Get answers before doing anything else.

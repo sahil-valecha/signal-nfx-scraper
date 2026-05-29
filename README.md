@@ -1,14 +1,10 @@
 # Signal NFX Investor Scraper
 
-Pull targeted investor lists from [Signal NFX](https://signal.nfx.com) - sector-curated, filterable by geography and check size. Output is a clean CSV ready for Clay or Google Sheets.
-
-Signal NFX maintains 200+ curated "top investors in X" lists (EdTech, cybersecurity, climate, fintech, impact, and more). This tool lets you pull any of them, filter to your target geography and check size, and get a structured list with names, firms, LinkedIn URLs, and investment details.
+Pull a targeted investor list from [Signal NFX](https://signal.nfx.com) using Claude Code. Describe what you need in plain English — Claude handles the rest and outputs a CSV ready for Clay or Google Sheets.
 
 ---
 
-## Quickstart with Claude Code
-
-The easiest way to use this is through Claude Code - you describe what you want in plain English and Claude handles the rest.
+## Usage
 
 **1. Clone the repo**
 ```bash
@@ -16,120 +12,88 @@ git clone https://github.com/sahil-valecha/signal-nfx-scraper.git
 cd signal-nfx-scraper
 ```
 
-**2. Install the one optional dependency** (macOS only, for auto-login)
-```bash
-pip install pycryptodome
-```
-
-**3. Open in Claude Code**
+**2. Open in Claude Code**
 ```bash
 claude
 ```
 
-**4. Run the skill**
+**3. Describe what you need**
 ```
-/signal-nfx
+I need to reach out to seed-stage cybersecurity investors in the USA
 ```
 
-Then just tell Claude what you need:
-> *"I want to reach out to investors in the USA who back cybersecurity startups"*
+Claude will check your setup, log you into Signal NFX, find the right lists, scrape them, and save a CSV to your current folder.
 
-Claude will log you in, find the right Signal NFX lists, scrape them, filter by your criteria, and save a CSV.
+---
+
+## What you need
+
+- [Claude Code](https://claude.ai/code) installed
+- Python 3.11+
+- A Signal NFX account — free at [signal.nfx.com](https://signal.nfx.com)
 
 ---
 
 ## What you get
 
-A CSV file with one row per investor:
+A CSV with one row per investor:
 
-| Column | Description |
-|--------|-------------|
+| Column | What it is |
+|--------|-----------|
 | `name` | Investor full name |
-| `first_name` / `last_name` | Split for personalization |
-| `signal_profile_url` | Link to their Signal NFX profile |
-| `linkedin_url` | LinkedIn profile URL |
-| `twitter_url` | Twitter/X profile URL |
+| `first_name` / `last_name` | Split for personalisation |
+| `linkedin_url` | LinkedIn profile — ready for Clay enrichment |
 | `firm` | Fund or firm name |
-| `firm_description` | Short firm description |
 | `firm_linkedin_url` | Firm LinkedIn page |
 | `firm_url` | Firm website |
-| `firm_crunchbase_url` | Firm Crunchbase page |
-| `position` | Rank within the Signal NFX list |
-| `stages` | Investment stages (Seed, Series A, etc.) |
-| `min_investment` | Minimum check size (USD) |
-| `max_investment` | Maximum check size (USD) |
-| `target_investment` | Target check size (USD) |
+| `stages` | Investment stages (Pre-seed, Seed, Series A…) |
+| `min_investment` / `max_investment` | Check size in USD |
 | `investment_locations` | Geographies they invest in |
-| `source_list` | Which Signal NFX list(s) they appeared in |
+| `signal_profile_url` | Their Signal NFX profile |
+| `source_list` | Which Signal NFX list(s) they came from |
 
 ---
 
-## Manual usage (no Claude Code)
+## Manual usage (without Claude Code)
 
-**See all available investor lists:**
 ```bash
+# See all available investor lists
 python scraper.py discover
-```
 
-**Scrape a list:**
-```bash
+# Scrape a list
 python scraper.py scrape --slugs "cybersecurity-seed"
-```
 
-**With filters:**
-```bash
+# With filters
 python scraper.py scrape \
   --slugs "cybersecurity-seed,cybersecurity-series-a" \
   --locations "United States" \
   --min-check 250000 \
   --output cybersecurity-usa-investors.csv
-```
 
-**Filter an existing CSV:**
-```bash
+# Filter an existing CSV
 python scraper.py filter \
   --input raw-investors.csv \
   --locations "Europe" \
-  --min-check 500000 \
   --output europe-investors.csv
-```
 
-**Re-authenticate:**
-```bash
+# Reset login
 python scraper.py auth --reset
 ```
 
----
-
-## Authentication
-
-On first run, the script tries to auto-extract your Signal NFX session from Chrome (macOS only). If that fails, it prompts you to paste your JWT manually:
-
-1. Go to [signal.nfx.com](https://signal.nfx.com) and log in
-2. Open DevTools → Application → Cookies → `signal.nfx.com`
-3. Copy the value of `SIGNAL_ACCESS_JWT`
-4. Paste when prompted
-
-Your JWT is saved locally in `.signal_jwt` so you only need to do this once. If it expires, run `python scraper.py auth --reset`.
-
-You can also set it as an environment variable:
+Install the one optional dependency first (Mac only, for auto-login):
 ```bash
-export SIGNAL_JWT="your-jwt-here"
+pip install pycryptodome
 ```
 
 ---
 
-## Requirements
+## How login works
 
-- Python 3.11+
-- `pycryptodome` (optional - only needed for Chrome auto-auth on macOS)
-- A Signal NFX account (free at [signal.nfx.com](https://signal.nfx.com))
+On first use, Claude walks you through logging in. On Mac, it tries to pull your session automatically from Chrome. If that doesn't work — or you're on Windows/Linux — it asks you to paste your JWT:
 
----
+1. Go to [signal.nfx.com](https://signal.nfx.com) in Chrome and log in
+2. Open DevTools → Application → Cookies → `signal.nfx.com`
+3. Copy the value of `SIGNAL_ACCESS_JWT`
+4. Paste it when prompted
 
-## Notes
-
-- Signal NFX's data is curated by their team - these are vetted investor lists, not raw scraped data
-- Pagination and rate limiting are handled automatically
-- Scraping large lists (1000+ investors) takes 1-2 minutes
-- Results are deduplicated across multiple lists by default
+Your session is saved locally so you only need to do this once.
