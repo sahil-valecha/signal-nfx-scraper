@@ -12,7 +12,7 @@ Scrapes Signal NFX's curated investor lists via their GraphQL API. Outputs a CSV
 
 ## Always follow the skill protocol
 
-When a user wants to pull investor data, always use the `/signal-nfx` skill. Do not improvise a different approach. The skill encodes hard-won knowledge about what works and what breaks.
+When a user wants to pull investor data, always use the `/investors` skill. Do not improvise a different approach. The skill encodes hard-won knowledge about what works and what breaks.
 
 ---
 

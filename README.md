@@ -17,12 +17,12 @@ cd signal-nfx-scraper
 claude
 ```
 
-**3. Describe what you need**
+**3. Run the skill**
 ```
-I need to reach out to seed-stage cybersecurity investors in the USA
+/investors
 ```
 
-Claude will check your setup, log you into Signal NFX, find the right lists, scrape them, and save a CSV to your current folder.
+Claude will ask what you need, check your setup, log you into Signal NFX, find the right lists, scrape them, and save a CSV to your current folder.
 
 ---
 
